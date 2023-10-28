@@ -40,6 +40,10 @@ func (c *Client) Request(url string) (links []string, err error) {
 	if err != nil {
 		return
 	}
+	contentType := response.Header.Get("Content-Type")
+	if !strings.HasPrefix(contentType, "text/html") || response.StatusCode != http.StatusOK {
+		return
+	}
 	defer response.Body.Close()
 	if err != nil {
 		return

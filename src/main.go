@@ -11,7 +11,7 @@ import (
 
 func main() {
 	poolSize := 4 * runtime.NumCPU()
-	baseUrl := os.Getenv("PARSER_CRAWLER_DOMAIN")
+	baseUrl := os.Getenv("CRAWLER_DOMAIN")
 	if baseUrl == "" {
 		baseUrl = "https://realpython.github.io/fake-jobs/"
 	}
@@ -30,10 +30,10 @@ func main() {
 		effectiveUrl: {},
 	}
 
-	startWorkers(crawler, poolSize, urlsChannel, urlTracker)
+	runWorkers(crawler, poolSize, urlsChannel, urlTracker)
 }
 
-func startWorkers(crawler crawl.Client, poolSize int, urlsChannel chan string, urlTracker map[string]struct{}) {
+func runWorkers(crawler crawl.Client, poolSize int, urlsChannel chan string, urlTracker map[string]struct{}) {
 	var wg sync.WaitGroup
 	var urlTrackerLock sync.RWMutex
 	wg.Add(len(urlsChannel))

@@ -19,7 +19,7 @@ func TestPageLinks(t *testing.T) {
 		wantErr   bool
 	}{
 		{
-			name: "parses all link types",
+			name: "parses both link tags",
 			args: args{
 				reader: strings.NewReader(`
 				<html>

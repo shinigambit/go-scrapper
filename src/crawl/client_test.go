@@ -25,26 +25,57 @@ func TestClient_Request(t *testing.T) {
 		wantErr   bool
 	}{
 		{
-			name: "",
+			name: "convert all links to full urls",
 			args: args{
-				url: "https://site.to.scrap.com/x/",
+				url: "https://site.to.crawl.com/x/",
 			},
 			fields: fields{
-				domain: "https://site.to.scrap.com/",
+				domain: "https://site.to.crawl.com",
 				getUrl: func(s string) (*http.Response, error) {
 					return &http.Response{
+						Header: http.Header{
+							"Content-Type": []string{"text/html"},
+						},
+						StatusCode: http.StatusOK,
 						Body: io.NopCloser(strings.NewReader(`
 						<html>
 							<body>
-								<a href="/link.html#a"/>
-								<a href="link.xml/#a"></a>
+								<a href="/absolute-link.html#a"/>
+								<a href='relative-link.xml/#a'>some text</a>
 							</body>
 						</html>
 						`)),
 					}, nil
 				},
 			},
-			wantLinks: []string{"https://site.to.scrap.com/link.html", "https://site.to.scrap.com/x/link.xml"},
+			wantLinks: []string{"https://site.to.crawl.com/absolute-link.html", "https://site.to.crawl.com/x/relative-link.xml"},
+		},
+		{
+			name: "skip external domain links",
+			args: args{
+				url: "https://site.to.crawl.com",
+			},
+			fields: fields{
+				domain: "https://site.to.crawl.com/",
+				getUrl: func(s string) (*http.Response, error) {
+					return &http.Response{
+						Header: http.Header{
+							"Content-Type": []string{"text/html"},
+						},
+						StatusCode: http.StatusOK,
+						Body: io.NopCloser(strings.NewReader(`
+						<html>
+							<body>
+								<a href="https://site.to.crawl.com/first.html"/>
+								<a href='http://site.to.crawl.com/different-protocol.html'></a>
+								<a href="https://same.protocol.different.domain.com/"/>
+							</body>
+						</html>
+						`)),
+					}, nil
+				},
+			},
+			wantLinks: []string{"https://site.to.crawl.com/first.html"},
 		},
 	}
 	for _, tt := range tests {
