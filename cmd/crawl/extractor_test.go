@@ -2,17 +2,24 @@ package crawl
 
 import (
 	"io"
-	"net/http"
 	"reflect"
 	"strings"
 	"testing"
 )
 
+type mockGetter struct {
+	s string
+}
+
+func (g *mockGetter) Get(url string) (io.ReadCloser, error) {
+	return io.NopCloser(strings.NewReader(g.s)), nil
+}
+
 func TestClient_Request(t *testing.T) {
 	t.Parallel()
 	type fields struct {
-		domain string
-		getUrl func(string) (*http.Response, error)
+		domain   string
+		response string
 	}
 	type args struct {
 		url string
@@ -31,22 +38,14 @@ func TestClient_Request(t *testing.T) {
 			},
 			fields: fields{
 				domain: "https://site.to.crawl.com",
-				getUrl: func(s string) (*http.Response, error) {
-					return &http.Response{
-						Header: http.Header{
-							"Content-Type": []string{"text/html"},
-						},
-						StatusCode: http.StatusOK,
-						Body: io.NopCloser(strings.NewReader(`
+				response: `
 						<html>
 							<body>
 								<a href="/absolute-link.html#a"/>
 								<a href='relative-link.xml/#a'>some text</a>
 							</body>
 						</html>
-						`)),
-					}, nil
-				},
+						`,
 			},
 			wantLinks: []string{"https://site.to.crawl.com/absolute-link.html", "https://site.to.crawl.com/x/relative-link.xml"},
 		},
@@ -57,23 +56,14 @@ func TestClient_Request(t *testing.T) {
 			},
 			fields: fields{
 				domain: "https://site.to.crawl.com/",
-				getUrl: func(s string) (*http.Response, error) {
-					return &http.Response{
-						Header: http.Header{
-							"Content-Type": []string{"text/html"},
-						},
-						StatusCode: http.StatusOK,
-						Body: io.NopCloser(strings.NewReader(`
+				response: `
 						<html>
 							<body>
 								<a href="https://site.to.crawl.com/first.html"/>
 								<a href='http://site.to.crawl.com/different-protocol.html'></a>
 								<a href="https://same.protocol.different.domain.com/"/>
 							</body>
-						</html>
-						`)),
-					}, nil
-				},
+						</html>`,
 			},
 			wantLinks: []string{"https://site.to.crawl.com/first.html"},
 		},
@@ -81,9 +71,8 @@ func TestClient_Request(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			c := NewClient(tt.fields.domain)
-			c.getUrl = tt.fields.getUrl
-			gotLinks, err := c.Request(tt.args.url)
+			c := NewUrlLinkExtractor(tt.fields.domain, &mockGetter{s: tt.fields.response})
+			gotLinks, err := c.Extract(tt.args.url)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Client.Request() error = %v, wantErr %v", err, tt.wantErr)
 				return

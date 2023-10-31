@@ -20,6 +20,7 @@ func PageLinks(reader io.Reader) (links []string, err error) {
 			for _, attr := range token.Attr {
 				if attr.Key == "href" {
 					links = append(links, attr.Val)
+					break
 				}
 			}
 		}

@@ -1,11 +1,10 @@
 package crawl
 
 import (
-	"net/http"
 	"regexp"
 	"strings"
 
-	"crawler.parser.com/src/parse"
+	"crawler.parser.com/cmd/parse"
 )
 
 var urlStart *regexp.Regexp
@@ -16,49 +15,47 @@ func init() {
 	anchorSuffix = regexp.MustCompile("/?#[^/]*$")
 }
 
-type Client struct {
-	domain string
-	getUrl func(string) (*http.Response, error)
+type LinkExtractor interface {
+	EffectiveDomain() string
+	Extract(string) ([]string, error)
 }
 
-func NewClient(domain string) Client {
+type UrlLinkExtractor struct {
+	domain    string
+	urlGetter URLGetter
+}
+
+func NewUrlLinkExtractor(domain string, urlGetter URLGetter) LinkExtractor {
 	if !strings.HasSuffix(domain, "/") {
 		domain = domain + "/"
 	}
-	return Client{
-		domain: domain,
-		getUrl: http.Get,
+	return &UrlLinkExtractor{
+		domain:    domain,
+		urlGetter: urlGetter,
 	}
 }
 
-func (c *Client) EffectiveDomain() string {
+func (c *UrlLinkExtractor) EffectiveDomain() string {
 	return c.domain
 }
 
-func (c *Client) Request(url string) (links []string, err error) {
-	response, err := c.getUrl(url)
+func (c *UrlLinkExtractor) Extract(url string) (links []string, err error) {
+	response, err := c.urlGetter.Get(url)
 	if err != nil {
 		return
 	}
-	contentType := response.Header.Get("Content-Type")
-	if !strings.HasPrefix(contentType, "text/html") || response.StatusCode != http.StatusOK {
-		return
-	}
-	defer response.Body.Close()
-	if err != nil {
-		return
-	}
+	defer response.Close()
 
-	rawLinks, err := parse.PageLinks(response.Body)
+	rawLinks, err := parse.PageLinks(response)
 	for _, s := range rawLinks {
-		if link := c.toAbsoluteLink(url, s); strings.HasPrefix(link, c.domain) {
+		if link := c.toFullUrl(url, s); strings.HasPrefix(link, c.domain) {
 			links = append(links, link)
 		}
 	}
 	return
 }
 
-func (c *Client) toAbsoluteLink(url, original string) string {
+func (c *UrlLinkExtractor) toFullUrl(url, original string) string {
 	// remove anchor from url
 	original = anchorSuffix.ReplaceAllString(original, "")
 	// absolute path
