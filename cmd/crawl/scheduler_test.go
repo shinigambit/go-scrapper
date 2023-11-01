@@ -100,7 +100,7 @@ func TestScheduler_ScheduleCrawl(t *testing.T) {
 			wantErr: "a buffer size of at least one is required to execute",
 		},
 		{
-			name: "test errors",
+			name: "errors are sent",
 			args: args{
 				ctx: context.TODO(),
 			},

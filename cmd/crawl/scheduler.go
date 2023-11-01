@@ -51,8 +51,8 @@ func (s *Scheduler) ScheduleCrawl(ctx context.Context) (<-chan Message, error) {
 
 	var once sync.Once
 	var urlTrackerLock sync.RWMutex
-	var pending atomic.Int64
-	pending.Add(int64(len(urlsChannel)))
+	var visitPending atomic.Int64
+	visitPending.Add(1)
 	for i := 0; i < s.poolSize; i++ {
 		go func() {
 			for {
@@ -69,7 +69,7 @@ func (s *Scheduler) ScheduleCrawl(ctx context.Context) (<-chan Message, error) {
 					links, err := s.extractor.Extract(url)
 					if err != nil {
 						outChannel <- Message{Err: err}
-						if pending.Add(-1) == 0 {
+						if visitPending.Add(-1) == 0 {
 							once.Do(func() {
 								close(urlsChannel)
 								close(outChannel)
@@ -85,12 +85,12 @@ func (s *Scheduler) ScheduleCrawl(ctx context.Context) (<-chan Message, error) {
 						for _, link := range links {
 							_, visited := urlTracker[link]
 							if !visited {
-								pending.Add(1)
+								visitPending.Add(1)
 								urlTracker[link] = struct{}{}
 								urlsChannel <- link
 							}
 						}
-						if pending.Add(-1) == 0 {
+						if visitPending.Add(-1) == 0 {
 							once.Do(func() {
 								close(urlsChannel)
 								close(outChannel)
