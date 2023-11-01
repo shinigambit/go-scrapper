@@ -18,17 +18,35 @@ type SingleRequestGetter struct {
 	httpClient http.Client
 }
 
+type ParallelRequestGetter struct {
+	httpClient http.Client
+}
+
 func NewHttpGetter(timeout time.Duration) URLGetter {
 	return &SingleRequestGetter{
 		httpClient: http.Client{Timeout: timeout},
 	}
 }
 
+func NewParallerRequestGetter(timeout time.Duration) URLGetter {
+	return &ParallelRequestGetter{
+		httpClient: http.Client{Timeout: timeout},
+	}
+}
+
 // allows a single request at a time to not overwhelm the server
-func (h *SingleRequestGetter) Get(url string) (io.ReadCloser, error) {
-	h.lock.Lock()
-	defer h.lock.Unlock()
-	response, err := http.Get(url)
+func (g *SingleRequestGetter) Get(url string) (io.ReadCloser, error) {
+	g.lock.Lock()
+	defer g.lock.Unlock()
+	return do(g.httpClient, url)
+}
+
+func (g *ParallelRequestGetter) Get(url string) (io.ReadCloser, error) {
+	return do(g.httpClient, url)
+}
+
+func do(client http.Client, url string) (io.ReadCloser, error) {
+	response, err := client.Get(url)
 	if err != nil {
 		return nil, err
 	}

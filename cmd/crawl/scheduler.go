@@ -59,7 +59,6 @@ func (s *Scheduler) ScheduleCrawl(ctx context.Context) (<-chan Message, error) {
 				select {
 				case <-ctx.Done():
 					once.Do(func() {
-						// close(urlsChannel)
 						close(outChannel)
 					})
 					return
@@ -67,7 +66,6 @@ func (s *Scheduler) ScheduleCrawl(ctx context.Context) (<-chan Message, error) {
 					if !open {
 						return
 					}
-					// fmt.Println("url:", url)
 					links, err := s.extractor.Extract(url)
 					if err != nil {
 						outChannel <- Message{Err: err}
@@ -79,7 +77,6 @@ func (s *Scheduler) ScheduleCrawl(ctx context.Context) (<-chan Message, error) {
 						}
 						continue
 					}
-					// fmt.Println("about to push:", url)
 					outChannel <- Message{Url: url}
 
 					go func() {
